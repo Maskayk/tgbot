@@ -12,20 +12,19 @@ PERPLEXITY_BASE_URL = "https://api.perplexity.ai"
 # Model definitions grouped by category
 MODELS = {
     "fast": [
-        {"id": "gpt-4.1-mini", "name": "GPT-4.1 Mini", "reasoning": False},
-        {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash", "reasoning": False},
-        {"id": "claude-3.5-haiku", "name": "Claude 3.5 Haiku", "reasoning": False},
+        {"id": "openai/gpt-5-mini", "name": "GPT-5 Mini", "reasoning": False},
+        {"id": "google/gemini-2.5-flash", "name": "Gemini 2.5 Flash", "reasoning": False},
+        {"id": "xai/grok-4-1-fast-non-reasoning", "name": "Grok 4.1 Fast", "reasoning": False},
     ],
     "smart": [
-        {"id": "gpt-4.1", "name": "GPT-4.1", "reasoning": False},
-        {"id": "gemini-2.5-pro", "name": "Gemini 2.5 Pro", "reasoning": False},
-        {"id": "claude-sonnet-4", "name": "Claude Sonnet 4", "reasoning": False},
+        {"id": "openai/gpt-5.2", "name": "GPT-5.2", "reasoning": False},
+        {"id": "google/gemini-2.5-pro", "name": "Gemini 2.5 Pro", "reasoning": False},
+        {"id": "anthropic/claude-sonnet-4-5", "name": "Claude Sonnet 4.5", "reasoning": False},
     ],
     "thinking": [
-        {"id": "o3", "name": "GPT o3", "reasoning": True},
-        {"id": "o4-mini", "name": "GPT o4-mini", "reasoning": True},
-        {"id": "gemini-2.5-pro", "name": "Gemini 2.5 Pro Thinking", "reasoning": True},
-        {"id": "claude-sonnet-4-thinking", "name": "Claude Sonnet 4 Thinking", "reasoning": True},
+        {"id": "openai/gpt-5.2", "name": "GPT-5.2 Thinking", "reasoning": True},
+        {"id": "google/gemini-2.5-pro", "name": "Gemini 2.5 Pro Thinking", "reasoning": True},
+        {"id": "xai/grok-4-1", "name": "Grok 4.1 Thinking", "reasoning": True},
     ],
     "search": [
         {"id": "sonar", "name": "Sonar", "reasoning": False},

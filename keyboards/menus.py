@@ -33,8 +33,8 @@ def model_categories_kb() -> InlineKeyboardMarkup:
 def model_list_kb(category: str) -> InlineKeyboardMarkup:
     models = MODELS.get(category, [])
     buttons = []
-    for m in models:
-        buttons.append([InlineKeyboardButton(text=m["name"], callback_data=f"model_{m['id']}_{category}")])
+    for i, m in enumerate(models):
+        buttons.append([InlineKeyboardButton(text=m["name"], callback_data=f"model_{category}_{i}")])
     buttons.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="menu_models")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 

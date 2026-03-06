@@ -32,20 +32,16 @@ async def show_models_in_category(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("model_"))
 async def select_model(callback: CallbackQuery):
+    # model_{category}_{index}
     parts = callback.data.split("_", 2)
-    # model_{id}_{category}
-    model_id = parts[1]
-    category = parts[2] if len(parts) > 2 else ""
+    category = parts[1]
+    idx = int(parts[2]) if len(parts) > 2 else 0
 
-    # Find model info
-    model_info = None
-    for cat_models in MODELS.values():
-        for m in cat_models:
-            if m["id"] == model_id:
-                model_info = m
-                break
-        if model_info:
-            break
+    cat_models = MODELS.get(category, [])
+    if idx < 0 or idx >= len(cat_models):
+        await callback.answer("Модель не найдена", show_alert=True)
+        return
+    model_info = cat_models[idx]
 
     if not model_info:
         await callback.answer("Модель не найдена", show_alert=True)

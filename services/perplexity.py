@@ -1,6 +1,5 @@
 import base64
 import logging
-from typing import Optional
 
 import aiohttp
 
@@ -22,10 +21,7 @@ async def chat_completion(
     web_search: bool = True,
 ) -> dict:
     """Send a request to Perplexity API and return the response."""
-
-    is_sonar = model in SONAR_MODELS
-
-    if is_sonar:
+    if model in SONAR_MODELS:
         return await _sonar_completion(
             messages=messages,
             model=model,
@@ -33,6 +29,8 @@ async def chat_completion(
             top_p=top_p,
             max_tokens=max_tokens,
             web_search=web_search,
+            reasoning=reasoning and model.startswith("sonar-reasoning"),
+            reasoning_effort=reasoning_effort,
         )
     else:
         return await _agent_completion(
@@ -53,6 +51,8 @@ async def _sonar_completion(
     top_p: float,
     max_tokens: int,
     web_search: bool,
+    reasoning: bool,
+    reasoning_effort: str,
 ) -> dict:
     """Chat Completions API for Sonar models."""
     url = f"{PERPLEXITY_BASE_URL}/chat/completions"
@@ -65,8 +65,11 @@ async def _sonar_completion(
         "max_tokens": max_tokens,
     }
 
+    if reasoning:
+        payload["reasoning_effort"] = reasoning_effort
+
     if not web_search:
-        payload["search_recency_filter"] = "none"
+        payload["web_search_options"] = {"search_context_size": "low"}
 
     headers = {
         "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
@@ -101,19 +104,22 @@ async def _agent_completion(
     reasoning: bool,
     reasoning_effort: str,
 ) -> dict:
-    """Agent API for third-party models (OpenAI, Anthropic, Google, xAI)."""
-    url = f"{PERPLEXITY_BASE_URL}/chat/completions"
+    """Agent API (Responses) for third-party models via /v1/responses."""
+    url = f"{PERPLEXITY_BASE_URL}/v1/responses"
+
+    # Convert chat-style messages to Agent API input format
+    agent_input = _convert_to_agent_input(messages)
 
     payload = {
         "model": model,
-        "messages": messages,
+        "input": agent_input,
         "temperature": temperature,
         "top_p": top_p,
-        "max_tokens": max_tokens,
+        "max_output_tokens": max_tokens,
     }
 
     if reasoning:
-        payload["reasoning_effort"] = reasoning_effort
+        payload["reasoning"] = {"effort": reasoning_effort}
 
     headers = {
         "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
@@ -128,7 +134,8 @@ async def _agent_completion(
                     logger.error("Perplexity Agent API error %d: %s", resp.status, error_text)
                     return {"error": True, "message": f"Ошибка API ({resp.status}). Попробуйте позже."}
                 data = await resp.json()
-                content = data["choices"][0]["message"]["content"]
+                # Agent API returns output as an array of content blocks
+                content = _extract_agent_content(data)
                 citations = data.get("citations", [])
                 return {"error": False, "content": content, "citations": citations}
     except aiohttp.ClientError as e:
@@ -137,6 +144,54 @@ async def _agent_completion(
     except Exception as e:
         logger.error("Unexpected error in Agent completion: %s", e)
         return {"error": True, "message": "Произошла непредвиденная ошибка."}
+
+
+def _convert_to_agent_input(messages: list[dict]) -> list[dict]:
+    """Convert chat-style messages to Agent API input format."""
+    agent_input = []
+    for msg in messages:
+        role = msg.get("role", "user")
+        content = msg.get("content")
+
+        if isinstance(content, str):
+            agent_input.append({
+                "role": role,
+                "content": [{"type": "input_text", "text": content}],
+            })
+        elif isinstance(content, list):
+            # Already structured content — convert types for Agent API
+            converted = []
+            for block in content:
+                btype = block.get("type", "")
+                if btype == "text" or btype == "input_text":
+                    converted.append({"type": "input_text", "text": block.get("text", "")})
+                elif btype == "image_url" or btype == "input_image":
+                    url = block.get("image_url", {}).get("url", "") if btype == "image_url" else block.get("image_url", "")
+                    converted.append({"type": "input_image", "image_url": url})
+                else:
+                    converted.append(block)
+            agent_input.append({"role": role, "content": converted})
+    return agent_input
+
+
+def _extract_agent_content(data: dict) -> str:
+    """Extract text content from Agent API response."""
+    output = data.get("output", [])
+    parts = []
+    for block in output:
+        if block.get("type") == "message":
+            for content_block in block.get("content", []):
+                if content_block.get("type") == "output_text":
+                    parts.append(content_block.get("text", ""))
+                elif content_block.get("type") == "text":
+                    parts.append(content_block.get("text", ""))
+    if parts:
+        return "\n".join(parts)
+    # Fallback: try choices format (in case API returns chat-completions-like)
+    choices = data.get("choices", [])
+    if choices:
+        return choices[0].get("message", {}).get("content", "")
+    return str(data)
 
 
 def build_messages_with_image(
